@@ -3,7 +3,7 @@ import time
 import logging
 from datetime import datetime
 from Crypto.Cipher import AES
-from Queue import Queue, Empty
+from queue import Queue, Empty
 from bluepy.btle import Peripheral, DefaultDelegate, ADDR_TYPE_RANDOM, BTLEException
 import crc16
 import os
@@ -136,7 +136,7 @@ class MiBand3(Peripheral):
 
     def _parse_raw_accel(self, bytes):
         res = []
-        for i in xrange(3):
+        for i in range(3):
             g = struct.unpack('hhh', bytes[2 + i * 6:8 + i * 6])
             res.append({'x': g[0], 'y': g[1], 'wtf': g[2]})
         return res
@@ -306,7 +306,7 @@ class MiBand3(Peripheral):
             base_value = '\x04\x01'
         elif type == 3:
                 base_value = '\x03\x01'
-        phone = raw_input('Sender Name or Caller ID')
+        phone = input('Sender Name or Caller ID')
         svc = self.getServiceByUUID(UUIDS.SERVICE_ALERT_NOTIFICATION)
         char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_CUSTOM_ALERT)[0]
         char.write(base_value+phone, withResponse=True)
@@ -336,14 +336,14 @@ class MiBand3(Peripheral):
                 minute = int(time[3:5])
                 seconds =  int(time[6:])
 
-                print("fraction"+str(fraction))
-                print("fraction"+str(format(fraction, '#04x')))
-                print("month"+str(format(month, '#04x')))
-                print("day"+str(format(day, '#04x')))
-                print("hour"+str(format(hour, '#04x')))
-                print("minute"+str(format(minute, '#04x')))
-                print("seconds"+str(format(seconds, '#04x')))
-                print("seconds"+str(seconds))
+                print(("fraction"+str(fraction)))
+                print(("fraction"+str(format(fraction, '#04x'))))
+                print(("month"+str(format(month, '#04x'))))
+                print(("day"+str(format(day, '#04x'))))
+                print(("hour"+str(format(hour, '#04x'))))
+                print(("minute"+str(format(minute, '#04x'))))
+                print(("seconds"+str(format(seconds, '#04x'))))
+                print(("seconds"+str(seconds)))
 
 
 
@@ -373,7 +373,7 @@ class MiBand3(Peripheral):
         # write_val = write_val.replace('0x', '\\x')
         # print(write_val)
             char.write('\xe2\x07\x01\x1e\x00\x00\x00\x00\x00\x00\x16', withResponse=True)
-        raw_input('Date Changed, press any key to continue')
+        input('Date Changed, press any key to continue')
 
     def create_date_data(self, date):
         data = struct.pack( 'hbbbbbbbxx', date.year, date.month, date.day, date.hour, date.minute, date.second, date.isoweekday(), 0 )
@@ -383,9 +383,9 @@ class MiBand3(Peripheral):
         svc = self.getServiceByUUID(UUIDS.SERVICE_MIBAND1)
         char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_CURRENT_TIME)[0]
         now = datetime.now()
-        print ('Set time to:', now)
+        print(('Set time to:', now))
         char.write(self.create_date_data(now), True)
-        raw_input('Date Changed, press any key to continue')
+        data = input('Date Changed, press any key to continue')
 
     def _auth_previews_data_notif(self, enabled):
         if enabled:
@@ -446,8 +446,8 @@ class MiBand3(Peripheral):
                 crc ^= (crc << 12) & 0xFFFF
                 crc ^= ((crc & 0xFF) << 5) & 0xFFFFFF
         crc &= 0xFFFF
-        print('CRC Value is-->', crc)
-        raw_input('Press Enter to Continue')
+        print(('CRC Value is-->', crc))
+        input('Press Enter to Continue')
         if extension.lower() == "res":
             # file size hex value is
             char.write('\x01'+ struct.pack("<i", fileSize)[:-1] +'\x02', withResponse=True)
@@ -459,21 +459,21 @@ class MiBand3(Peripheral):
           while True:
             c = f.read(20) #takes 20 bytes :D
             if not c:
-              print "Update Over"
+              print("Update Over")
               break
-            print('Writing Resource', c.encode('hex'))
+            print(('Writing Resource', c.encode('hex')))
             char1.write(c)
         # after update is done send these values
         char.write(b'\x00', withResponse=True)
         self.waitForNotifications(0.5)
-        print('CheckSum is --> ', hex(crc & 0xFF), hex((crc >> 8) & 0xFF))
+        print(('CheckSum is --> ', hex(crc & 0xFF), hex((crc >> 8) & 0xFF)))
         checkSum = b'\x04' + chr(crc & 0xFF) + chr((crc >> 8) & 0xFF)
         char.write(checkSum, withResponse=True)
         if extension.lower() == "fw":
             self.waitForNotifications(0.5)
             char.write('\x05', withResponse=True)
         print('Update Complete')
-        raw_input('Press Enter to Continue')
+        input('Press Enter to Continue')
     def start_raw_data_realtime(self, heart_measure_callback=None, heart_raw_callback=None, accel_raw_callback=None):
             char_m = self.svc_heart.getCharacteristics(UUIDS.CHARACTERISTIC_HEART_RATE_MEASURE)[0]
             char_d = char_m.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
