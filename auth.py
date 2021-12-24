@@ -87,6 +87,13 @@ class MiBand3(Peripheral):
         self._char_heart_ctrl = self.svc_heart.getCharacteristics(UUIDS.CHARACTERISTIC_HEART_RATE_CONTROL)[0]
         self._char_heart_measure = self.svc_heart.getCharacteristics(UUIDS.CHARACTERISTIC_HEART_RATE_MEASURE)[0]
 
+        # Recorded information
+        self._char_fetch = self.getCharacteristics(uuid=UUIDS.CHARACTERISTIC_FETCH)[0]
+        self._desc_fetch = self._char_fetch.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
+        self._char_activity = self.getCharacteristics(uuid=UUIDS.CHARACTERISTIC_ACTIVITY_DATA)[0]
+        self._desc_activity = self._char_activity.getDescriptors(forUUID=UUIDS.NOTIFICATION_DESCRIPTOR)[0]
+
+
         # Enable auth service notifications on startup
         self._auth_notif(True)
         # Let band to settle
@@ -304,10 +311,51 @@ class MiBand3(Peripheral):
         char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_CUSTOM_ALERT)[0]
         char.write(base_value+phone, withResponse=True)
 
-    def change_date(self):
+    def change_date_old(self,time_string=None):
         print('Change date and time')
         svc = self.getServiceByUUID(UUIDS.SERVICE_MIBAND1)
         char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_CURRENT_TIME)[0]
+        if(time_string != None):
+            try:
+                # split time and date
+                time_string = time_string.split(" ")
+                # get time and date saperely
+                date = time_string[0]
+                time = time_string[1]
+                # get date individual parameters
+                day = int(date[:2])
+                month = int(date[3:5])
+                year = int(date[6:10])
+                fraction = year / 256
+                rem = year % 256
+
+                print("1")
+
+                # get time individual parameters
+                hour = int(time[:2])
+                minute = int(time[3:5])
+                seconds =  int(time[6:])
+
+                print("fraction"+str(fraction))
+                print("fraction"+str(format(fraction, '#04x')))
+                print("month"+str(format(month, '#04x')))
+                print("day"+str(format(day, '#04x')))
+                print("hour"+str(format(hour, '#04x')))
+                print("minute"+str(format(minute, '#04x')))
+                print("seconds"+str(format(seconds, '#04x')))
+                print("seconds"+str(seconds))
+
+
+
+                # create string to for the band
+                write_val =  format(rem, '#04x') + format(fraction, '#04x') + format(month, '#04x') + format(day, '#04x') + format(hour, '#04x') + format(minute, '#04x') + format(seconds, '#04x') + format(5, '#04x') + format(0, '#04x') + format(0, '#04x') +'0x16'
+                write_val = write_val.replace('0x', '\\x')  
+                print("3")
+                char.write(write_val, withResponse=True)
+            except:
+                print("[-] Wrong format for time and date")
+                return False
+        else:   
         # date = raw_input('Enter the date in dd-mm-yyyy format\n')
         # time = raw_input('Enter the time in HH:MM:SS format\n')
         #
@@ -324,8 +372,58 @@ class MiBand3(Peripheral):
         # write_val =  format(rem, '#04x') + format(fraction, '#04x') + format(month, '#04x') + format(day, '#04x') + format(hour, '#04x') + format(minute, '#04x') + format(seconds, '#04x') + format(5, '#04x') + format(0, '#04x') + format(0, '#04x') +'0x16'
         # write_val = write_val.replace('0x', '\\x')
         # print(write_val)
-        char.write('\xe2\x07\x01\x1e\x00\x00\x00\x00\x00\x00\x16', withResponse=True)
+            char.write('\xe2\x07\x01\x1e\x00\x00\x00\x00\x00\x00\x16', withResponse=True)
         raw_input('Date Changed, press any key to continue')
+
+    def create_date_data(self, date):
+        data = struct.pack( 'hbbbbbbbxx', date.year, date.month, date.day, date.hour, date.minute, date.second, date.isoweekday(), 0 )
+        return data
+
+    def change_date(self,time_string=None):
+        svc = self.getServiceByUUID(UUIDS.SERVICE_MIBAND1)
+        char = svc.getCharacteristics(UUIDS.CHARACTERISTIC_CURRENT_TIME)[0]
+        now = datetime.now()
+        print ('Set time to:', now)
+        char.write(self.create_date_data(now), True)
+        raw_input('Date Changed, press any key to continue')
+
+    def _auth_previews_data_notif(self, enabled):
+        if enabled:
+            self._log.info("Enabling Fetch Char notifications status...")
+            self._desc_fetch.write(b"\x01\x00", True)
+            self._log.info("Enabling Activity Char notifications status...")
+            self._desc_activity.write(b"\x01\x00", True)
+            self.activity_notif_enabled = True
+        else:
+            self._log.info("Disabling Fetch Char notifications status...")
+            self._desc_fetch.write(b"\x00\x00", True)
+            self._log.info("Disabling Activity Char notifications status...")
+            self._desc_activity.write(b"\x00\x00", True)
+            self.activity_notif_enabled = False
+
+    def start_get_previews_data(self, start_timestamp):
+        if not self.activity_notif_enabled:
+            self._auth_previews_data_notif(True)
+            self.waitForNotifications(0.1)
+        print("Trigger activity communication")
+        year = struct.pack("<H", start_timestamp.year)
+        month = struct.pack("b", start_timestamp.month)
+        day = struct.pack("b", start_timestamp.day)
+        hour = struct.pack("b", start_timestamp.hour)
+        minute = struct.pack("b", start_timestamp.minute)
+        ts = year + month + day + hour + minute
+        char = self.svc_1.getCharacteristics(UUIDS.CHARACTERISTIC_CURRENT_TIME)[0]
+        utc_offset = char.read()[9:11]
+        trigger = b'\x01\x01' + ts + utc_offset
+        self._char_fetch.write(trigger, False)
+        self.active = True
+    
+    def get_activity_betwn_intervals(self,start_timestamp, end_timestamp, callback ):
+        self.end_timestamp = end_timestamp
+        self.start_get_previews_data(start_timestamp)
+        self.activity_callback = callback
+
+
     def dfuUpdate(self, fileName):
         print('Update Firmware/Resource')
         svc = self.getServiceByUUID(UUIDS.SERVICE_DFU_FIRMWARE)

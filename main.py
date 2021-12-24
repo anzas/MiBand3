@@ -5,6 +5,19 @@ from cursesmenu.items import *
 from constants import ALERT_TYPES
 import time
 import os
+from datetime import datetime
+
+def activity_log_callback(timestamp,c,i,s,h):
+    print("{}: category: {}; intensity {}; steps {}; heart rate {};\n".format( timestamp.strftime('%d.%m - %H:%M'), c, i ,s ,h))
+
+#Needs auth    
+def get_activity_logs():
+    #gets activity log for this day.
+    temp = datetime.now()
+    band.get_activity_betwn_intervals(datetime(temp.year,temp.month,temp.day),datetime.now(),activity_log_callback)
+    while True:
+        band.waitForNotifications(0.2)
+
 def call_immediate():
     print 'Sending Call Alert'
     time.sleep(1)
@@ -39,7 +52,7 @@ def heart_beat():
     raw_input('Press Enter to continue')
 
 def change_date():
-    band.change_date()
+    band.change_date("16-12-2021 19:42:00")
 MAC_ADDR = sys.argv[1]
 print 'Attempting to connect to ', MAC_ADDR
 
@@ -67,8 +80,9 @@ msg_alert = FunctionItem("Send a Message Notification", custom_message)
 call_alert = FunctionItem("Send a Call Notification", custom_call)
 miss_call_alert = FunctionItem("Send a Missed Call Notification", custom_missed_call)
 change_date_time = FunctionItem("Change Date and Time", change_date)
+get_activities = FunctionItem("Get activities", get_activity_logs)
 heart_beat_menu = FunctionItem("Get Heart BPM", heart_beat)
-dfu_update_menu = FunctionItem("DFU Update", updateFirmware)
+#dfu_update_menu = FunctionItem("DFU Update", updateFirmware)
 
 menu.append_item(detail_menu)
 menu.append_item(call_notif)
@@ -76,7 +90,8 @@ menu.append_item(msg_notif)
 menu.append_item(msg_alert)
 menu.append_item(call_alert)
 menu.append_item(change_date_time)
+menu.append_item(get_activities)
 menu.append_item(miss_call_alert)
 menu.append_item(heart_beat_menu)
-menu.append_item(dfu_update_menu)
+#menu.append_item(dfu_update_menu)
 menu.show()
